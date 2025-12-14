@@ -4,6 +4,8 @@ import { loadPersistedState, savePersistedState } from '../storage/localStorage'
 import {
   AppAction,
   AppState,
+  BuilderInput,
+  BuilderOutput,
   LearningSuggestion,
   Message,
   Mode,
@@ -16,6 +18,7 @@ import { ChatPanel } from './ChatPanel';
 import { QuizPanel } from './QuizPanel';
 import { ReviewPanel } from './ReviewPanel';
 import { ProgressPanel } from './ProgressPanel';
+import { BuilderPanel } from './BuilderPanel';
 
 const createInitialState = (): AppState => {
   const persisted = typeof window !== 'undefined' ? loadPersistedState() : undefined;
@@ -34,6 +37,7 @@ const createInitialState = (): AppState => {
     quizStatus: 'idle',
     currentQuestion: undefined,
     lastAttempt: undefined,
+    builderOutput: persisted?.builderOutput,
   };
 };
 
@@ -80,6 +84,8 @@ const reducer = (state: AppState, action: AppAction): AppState => {
     }
     case 'replaceReviewQueue':
       return { ...state, reviewQueue: action.queue };
+    case 'setBuilderOutput':
+      return { ...state, builderOutput: action.output };
     default:
       return state;
   }
@@ -105,13 +111,14 @@ export default function App(): JSX.Element {
       messages: state.messages,
       log: state.log,
       reviewQueue: state.reviewQueue,
+      builderOutput: state.builderOutput,
     });
-  }, [state.messages, state.log, state.reviewQueue]);
+  }, [state.messages, state.log, state.reviewQueue, state.builderOutput]);
 
   const suggestion: LearningSuggestion = useMemo(() => tutor.suggestNext(state.log), [state.log]);
 
   const modeLabel: Record<Mode, string> = useMemo(
-    () => ({ chat: 'Chat', quiz: 'Quiz', review: 'Review', progress: 'Progress' }),
+    () => ({ chat: 'Chat', quiz: 'Quiz', review: 'Review', progress: 'Progress', builder: 'Builder' }),
     []
   );
 
@@ -170,6 +177,11 @@ export default function App(): JSX.Element {
     dispatch({ type: 'replaceReviewQueue', queue: orderedQueue });
   };
 
+  const handleGenerateProject = (input: BuilderInput) => {
+    const output: BuilderOutput = tutor.generateProject(input);
+    dispatch({ type: 'setBuilderOutput', output });
+  };
+
   useEffect(() => {
     if (state.mode === 'review' && state.quizStatus === 'idle' && state.reviewQueue.length) {
       handleNextReviewQuestion();
@@ -212,6 +224,10 @@ export default function App(): JSX.Element {
         )}
 
         {state.mode === 'progress' && <ProgressPanel log={state.log} />}
+
+        {state.mode === 'builder' && (
+          <BuilderPanel output={state.builderOutput} onGenerate={handleGenerateProject} />
+        )}
       </main>
     </div>
   );

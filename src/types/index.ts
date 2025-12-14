@@ -1,5 +1,5 @@
-// 表示モード。Progress タブを追加しても後方互換を維持するため、既存のラベルは残す。
-export type Mode = 'chat' | 'quiz' | 'review' | 'progress';
+// 表示モード。新しい Builder タブを追加しても後方互換を維持するため、既存のラベルは残す。
+export type Mode = 'chat' | 'quiz' | 'review' | 'progress' | 'builder';
 
 export type Sender = 'user' | 'assistant';
 
@@ -11,6 +11,29 @@ export type QuizAnswer = number | string;
 export interface LearningSuggestion {
   topic: string;
   reason: string;
+}
+
+export type BuilderDifficulty = 'easy' | 'normal';
+
+export type BuilderTemplate = 'react-mini' | 'node-api' | 'unity-csharp';
+
+export interface BuilderInput {
+  description: string;
+  template: BuilderTemplate;
+  difficulty: BuilderDifficulty;
+}
+
+export interface BuilderFile {
+  path: string;
+  content: string;
+}
+
+// Builder 出力は LLM 置き換えを想定した固定フォーマット。
+export interface BuilderOutput {
+  summary: string;
+  assumptions: string[];
+  runSteps: string[];
+  files: BuilderFile[];
 }
 
 export interface Message {
@@ -77,6 +100,7 @@ export interface AppState {
   reviewQueue: QuizQuestion[];
   log: QuizAttempt[];
   quizStatus: 'idle' | 'awaitingAnswer' | 'result';
+  builderOutput?: BuilderOutput;
 }
 
 export type AppAction =
@@ -84,4 +108,5 @@ export type AppAction =
   | { type: 'addMessage'; message: Message }
   | { type: 'setQuestion'; question?: QuizQuestion; status: AppState['quizStatus'] }
   | { type: 'recordAttempt'; attempt: QuizAttempt; addToReviewQueue: boolean }
-  | { type: 'replaceReviewQueue'; queue: QuizQuestion[] };
+  | { type: 'replaceReviewQueue'; queue: QuizQuestion[] }
+  | { type: 'setBuilderOutput'; output?: BuilderOutput };

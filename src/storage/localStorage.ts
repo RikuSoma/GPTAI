@@ -1,4 +1,4 @@
-import { Message, QuizAttempt, QuizQuestion } from '../types';
+import { BuilderOutput, Message, QuizAttempt, QuizQuestion } from '../types';
 
 const STORAGE_KEY = 'study-app-state';
 
@@ -6,6 +6,7 @@ export interface PersistedState {
   messages: Message[];
   log: QuizAttempt[];
   reviewQueue: QuizQuestion[];
+  builderOutput?: BuilderOutput;
 }
 
 export const loadPersistedState = (): PersistedState | undefined => {

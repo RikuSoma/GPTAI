@@ -1,4 +1,4 @@
-import { LearningSuggestion, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
+import { BuilderInput, BuilderOutput, LearningSuggestion, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
 
 export interface ChatReply {
   message: string;
@@ -15,4 +15,5 @@ export interface ICoach {
   nextQuizQuestion: (log: QuizAttempt[]) => QuizQuestion;
   evaluateAnswer: (question: QuizQuestion, userAnswer: QuizAnswer) => EvaluationResult;
   suggestNext: (log: QuizAttempt[]) => LearningSuggestion;
+  generateProject: (input: BuilderInput) => BuilderOutput;
 }

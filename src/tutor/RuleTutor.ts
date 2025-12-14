@@ -1,4 +1,6 @@
 import {
+  BuilderInput,
+  BuilderOutput,
   QuizAttempt,
   QuizQuestion,
   QuestionType,
@@ -292,4 +294,142 @@ export class RuleTutor implements ICoach {
         };
     }
   }
+
+  generateProject(input: BuilderInput): BuilderOutput {
+    // ユーザー入力を安全に扱うため、簡易フィルタで危険なキーワードを除外する。
+    const safeInput = sanitizeBuilderInput(input);
+
+    switch (safeInput.template) {
+      case 'react-mini':
+        return buildReactMiniProject(safeInput);
+      case 'node-api':
+        return buildNodeApiProject(safeInput);
+      case 'unity-csharp':
+      default:
+        return buildUnityCSharpProject(safeInput);
+    }
+  }
 }
+
+const sanitizeBuilderInput = (input: BuilderInput): BuilderInput => {
+  const blocked = [/secret/i, /password/i, /token/i, /rm -rf/i, /DROP TABLE/i];
+  const filteredDescription = blocked.reduce((text, pattern) => text.replace(pattern, '[filtered]'), input.description);
+  const normalized = filteredDescription.replace(/\s+/g, ' ').trim();
+  const safeDescription = normalized.slice(0, 240) || '学習用サンプルプロジェクト';
+  return { ...input, description: safeDescription };
+};
+
+const limitFiles = (files: BuilderOutput['files']): BuilderOutput['files'] => {
+  const MAX_FILES = 20;
+  const MAX_LINES = 400;
+  return files.slice(0, MAX_FILES).map((file) => {
+    const lines = file.content.split('\n');
+    if (lines.length <= MAX_LINES) return file;
+    const truncated = [...lines.slice(0, MAX_LINES), '// ... truncated for brevity'];
+    return { ...file, content: truncated.join('\n') };
+  });
+};
+
+const buildReactMiniProject = (input: BuilderInput): BuilderOutput => {
+  const title = input.description || 'React Mini App';
+  const packageName = title.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/(^-|-$)/g, '') || 'react-mini-app';
+  const summary = `React ミニアプリ「${title}」を ${input.difficulty === 'easy' ? 'やさしく' : '標準的に'} 作るための雛形です。`;
+
+  const files = limitFiles([
+    {
+      path: 'README.md',
+      content: `# ${title}\n\n${summary}\n\n## 使い方\n1. npm install\n2. npm run dev\n3. ブラウザで UI とカウンター/ToDo を確認\n\n## 機能\n- カウンターと簡易 Todo\n- ${input.description}\n`,
+    },
+    {
+      path: 'package.json',
+      content: `{"name": "${packageName}", "version": "0.1.0", "scripts": {"dev": "vite", "build": "tsc && vite build"}}`,
+    },
+    {
+      path: 'index.html',
+      content: '<!doctype html>\n<html>\n  <head><meta charset="utf-8"><title>React Mini</title></head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.tsx"></script>\n  </body>\n</html>',
+    },
+    {
+      path: 'src/main.tsx',
+      content:
+        "import React from 'react';\nimport { createRoot } from 'react-dom/client';\nimport App from './App';\nimport './styles.css';\n\ncreateRoot(document.getElementById('root')!).render(<App />);\n",
+    },
+    {
+      path: 'src/App.tsx',
+      content: `import React, { useState } from 'react';\n\nconst title = '${title}';\n\nexport default function App(): JSX.Element {\n  const [count, setCount] = useState(0);\n  const [todos, setTodos] = useState<string[]>([]);\n  const [draft, setDraft] = useState('');\n\n  return (\n    <main style={{ padding: '1rem', fontFamily: 'sans-serif' }}>\n      <h1>{title}</h1>\n      <p>${input.description}</p>\n      <section>\n        <h2>Counter</h2>\n        <button onClick={() => setCount((n) => n + 1)}>+1</button>\n        <span style={{ marginLeft: 8 }}>{count}</span>\n      </section>\n      <section>\n        <h2>Todo</h2>\n        <input value={draft} onChange={(e) => setDraft(e.target.value)} />\n        <button onClick={() => { if (!draft.trim()) return; setTodos([...todos, draft]); setDraft(''); }}>追加</button>\n        <ul>{todos.map((t, i) => <li key={i}>{t}</li>)}</ul>\n      </section>\n    </main>\n  );\n}\n`,
+    },
+    {
+      path: 'src/styles.css',
+      content: 'body { background: #f7f7f9; margin: 0; } button { margin-left: 4px; }',
+    },
+  ]);
+
+  return {
+    summary,
+    assumptions: ['ローカルで Vite が動作すること', '説明文: ' + input.description],
+    runSteps: ['npm install', 'npm run dev'],
+    files,
+  };
+};
+
+const buildNodeApiProject = (input: BuilderInput): BuilderOutput => {
+  const title = input.description || 'Node API';
+  const summary = `Express + TypeScript で ${title} を構成する API 雛形です。`;
+
+  const files = limitFiles([
+    {
+      path: 'README.md',
+      content: `# ${title} API\n\n${summary}\n\n## エンドポイント\n- GET /health\n- GET /todos\n- POST /todos\n\n## 実行\n1. npm install\n2. npm run dev\n`,
+    },
+    {
+      path: 'package.json',
+      content:
+        `{"name": "${title.toLowerCase().replace(/[^a-z0-9-]+/g, '-') || 'node-api'}", "version": "0.1.0", "scripts": {"dev": "ts-node-dev src/server.ts", "start": "node dist/server.js"}, "dependencies": {"express": "^4.19.2"}, "devDependencies": {"typescript": "^5.6.2"}}`,
+    },
+    {
+      path: 'tsconfig.json',
+      content: '{"compilerOptions": {"target": "ES2020", "module": "CommonJS", "outDir": "dist", "esModuleInterop": true}, "include": ["src"]}',
+    },
+    {
+      path: 'src/server.ts',
+      content: `import express from 'express';\n\nconst app = express();\napp.use(express.json());\n\napp.get('/health', (_req, res) => {\n  res.json({ status: 'ok', project: '${title}' });\n});\n\nconst todos: { id: number; title: string; done: boolean }[] = [\n  { id: 1, title: '${input.description} サンプル', done: false },\n];\n\napp.get('/todos', (_req, res) => {\n  res.json(todos);\n});\n\napp.post('/todos', (req, res) => {\n  const title = String(req.body?.title ?? '').trim();\n  if (!title) {\n    return res.status(400).json({ error: 'title is required' });\n  }\n  const next = { id: todos.length + 1, title, done: false };\n  todos.push(next);\n  res.status(201).json(next);\n});\n\nconst port = process.env.PORT || 3000;\napp.listen(port, () => {\n  console.log('API listening on', port);\n});\n`,
+    },
+  ]);
+
+  return {
+    summary,
+    assumptions: ['Express を使った基本 API', '入力説明: ' + input.description],
+    runSteps: ['npm install', 'npm run dev'],
+    files,
+  };
+};
+
+const buildUnityCSharpProject = (input: BuilderInput): BuilderOutput => {
+  const title = input.description || 'Unity Tooling';
+  const summary = `Unity EditorWindow と ScriptableObject を使った ${title} の雛形です。`;
+
+  const files = limitFiles([
+    {
+      path: 'README.md',
+      content: `# ${title} (Unity C#)\n\n${summary}\n\n## 使い方\n- Assets/Editor に配置して Unity を再起動\n- Window > Generated/${title} からツールを開く\n\n## 期待する動作\n- ScriptableObject の保存/読み込み\n- ${input.description}\n`,
+    },
+    {
+      path: 'Editor/GeneratedToolWindow.cs',
+      content: `using UnityEditor;\nusing UnityEngine;\n\npublic class GeneratedToolWindow : EditorWindow\n{\n    private SampleData data;\n    private Vector2 scroll;\n\n    [MenuItem("Window/Generated/${title}")]\n    public static void ShowWindow()\n    {\n        GetWindow<GeneratedToolWindow>("${title}");\n    }\n\n    private void OnEnable()\n    {\n        data = AssetDatabase.LoadAssetAtPath<SampleData>("Assets/GeneratedData.asset");\n        if (data == null)\n        {\n            data = ScriptableObject.CreateInstance<SampleData>();\n            AssetDatabase.CreateAsset(data, "Assets/GeneratedData.asset");\n        }\n    }\n\n    private void OnGUI()\n    {\n        scroll = EditorGUILayout.BeginScrollView(scroll);\n        EditorGUILayout.LabelField("概要", "${input.description}");\n        data.title = EditorGUILayout.TextField("タイトル", data.title);\n        data.note = EditorGUILayout.TextField("メモ", data.note);\n        if (GUILayout.Button("保存"))\n        {\n            EditorUtility.SetDirty(data);\n            AssetDatabase.SaveAssets();\n        }\n        EditorGUILayout.EndScrollView();\n    }\n}\n`,
+    },
+    {
+      path: 'Runtime/SampleData.cs',
+      content: `using UnityEngine;\n\n[CreateAssetMenu(fileName = "GeneratedData", menuName = "Generated/${title}")]\npublic class SampleData : ScriptableObject\n{\n    public string title = "${title}";\n    public string note = "${input.description}";\n}\n`,
+    },
+    {
+      path: 'Runtime/SampleProcessor.cs',
+      content: `using UnityEngine;\n\npublic static class SampleProcessor\n{\n    public static void Run(SampleData data)\n    {\n        Debug.Log($"Processing: {data.title} - {data.note}");\n    }\n}\n`,
+    },
+  ]);
+
+  return {
+    summary,
+    assumptions: ['Unity 2021+ を想定', '説明文: ' + input.description],
+    runSteps: ['Unity プロジェクトの Assets 以下に配置', 'Window メニューからツールを開く'],
+    files,
+  };
+};

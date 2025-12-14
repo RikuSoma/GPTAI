@@ -1,4 +1,11 @@
-import { LearningSuggestion, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
+import {
+  BuilderInput,
+  BuilderOutput,
+  LearningSuggestion,
+  QuizAnswer,
+  QuizAttempt,
+  QuizQuestion,
+} from '../types';
 import { ChatReply, EvaluationResult, ICoach } from './ICoach';
 import { createChatCompletion } from '../llm/llmClient';
 
@@ -28,6 +35,10 @@ export class LlmTutor implements ICoach {
   }
 
   suggestNext(_log: QuizAttempt[]): LearningSuggestion {
+    throw new Error('LlmTutor is not implemented yet.');
+  }
+
+  generateProject(_input: BuilderInput): BuilderOutput {
     throw new Error('LlmTutor is not implemented yet.');
   }
 }
