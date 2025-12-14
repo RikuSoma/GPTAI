@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Message } from '../types';
+import { LearningSuggestion, Message } from '../types';
 import { MessageList } from './MessageList';
 
 interface Props {
   messages: Message[];
+  suggestion?: LearningSuggestion;
   onSendMessage: (content: string) => void;
 }
 
-export const ChatPanel: React.FC<Props> = ({ messages, onSendMessage }) => {
+export const ChatPanel: React.FC<Props> = ({ messages, suggestion, onSendMessage }) => {
   const [input, setInput] = useState('');
 
   const sorted = useMemo(
@@ -34,6 +35,15 @@ export const ChatPanel: React.FC<Props> = ({ messages, onSendMessage }) => {
       <div className="chat__messages">
         <MessageList messages={sorted} />
       </div>
+
+      {suggestion && (
+        <div className="chat__suggestion" aria-live="polite">
+          <span className="chat__suggestion-label">次のおすすめ：</span>
+          <span className="chat__suggestion-body">
+            {suggestion.topic}（{suggestion.reason}）
+          </span>
+        </div>
+      )}
 
       <form className="chat__form" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="chat-input">

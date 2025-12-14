@@ -87,6 +87,22 @@ body {
   background: #f8fafc;
 }
 
+.chat__suggestion {
+  margin-top: 0.6rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #312e81;
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+.chat__suggestion-label {
+  font-weight: 700;
+}
+
 .chat__form {
   margin-top: 0.75rem;
   display: flex;

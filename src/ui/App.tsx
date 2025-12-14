@@ -1,7 +1,16 @@
 import React, { useEffect, useMemo, useReducer } from 'react';
 import { RuleTutor } from '../tutor/RuleTutor';
 import { loadPersistedState, savePersistedState } from '../storage/localStorage';
-import { AppAction, AppState, Message, Mode, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
+import {
+  AppAction,
+  AppState,
+  LearningSuggestion,
+  Message,
+  Mode,
+  QuizAnswer,
+  QuizAttempt,
+  QuizQuestion,
+} from '../types';
 import { TabNav } from './TabNav';
 import { ChatPanel } from './ChatPanel';
 import { QuizPanel } from './QuizPanel';
@@ -99,6 +108,8 @@ export default function App(): JSX.Element {
     });
   }, [state.messages, state.log, state.reviewQueue]);
 
+  const suggestion: LearningSuggestion = useMemo(() => tutor.suggestNext(state.log), [state.log]);
+
   const modeLabel: Record<Mode, string> = useMemo(
     () => ({ chat: 'Chat', quiz: 'Quiz', review: 'Review', progress: 'Progress' }),
     []
@@ -176,7 +187,7 @@ export default function App(): JSX.Element {
 
       <main className="app__main">
         {state.mode === 'chat' && (
-          <ChatPanel messages={state.messages} onSendMessage={handleSendMessage} />
+          <ChatPanel messages={state.messages} onSendMessage={handleSendMessage} suggestion={suggestion} />
         )}
 
         {state.mode === 'quiz' && (

@@ -21,11 +21,11 @@ npm run dev
 
 ## 機能概要
 
-- **Chat タブ**: `useReducer` で管理するチャット UI。ユーザー/アシスタントのメッセージと時刻を表示し、履歴を保存します。
+- **Chat タブ**: `useReducer` で管理するチャット UI。ユーザー/アシスタントのメッセージと時刻を表示し、履歴を保存します。直近の学習ログから自動で「次に取り組むと良いトピック」を短い理由付きで提案します。
 - **Quiz タブ**: 4択に加え、`shortAnswer`（短文記述）、`codeFill`（コード補完）、`codeDebug`（デバッグ方針回答）を出題。採点には rubric（採点観点）と hints を表示し、間違えた問題は復習キューに登録されます。
 - **Review タブ**: 復習キューに溜まった問題だけを再出題します。誤答回数の多い順に並び替え、正解するとキューから削除されます。
 - **Progress タブ**: トピック別の正答率、総回答数/正答数、誤答が多いトピック上位を可視化します。
-- **LLM 差し替え準備**: 現在はルールベースの `RuleTutor` が動作。`llm/llmClient.ts` を実装し、`LlmTutor` の `nextQuizQuestion` / `evaluateAnswer` を実装して差し替えるだけで LLM に移行できます。
+- **LLM 差し替え準備**: 現在はルールベースの `RuleTutor` が動作。`llm/llmClient.ts` を実装し、`LlmTutor` の `nextQuizQuestion` / `evaluateAnswer` / `suggestNext` を実装して差し替えるだけで LLM に移行できます。
 
 ## メモ
 

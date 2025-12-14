@@ -6,6 +6,7 @@ import {
   CodeFillQuestion,
   ShortAnswerQuestion,
   MultipleChoiceQuestion,
+  LearningSuggestion,
 } from '../types';
 import { ChatReply, EvaluationResult, ICoach } from './ICoach';
 
@@ -110,6 +111,36 @@ const QUESTION_BANK: QuizQuestion[] = [
   },
 ];
 
+interface TopicAggregate {
+  topic: string;
+  total: number;
+  correct: number;
+  wrongCount: number;
+  lastAsked: number;
+}
+
+const toTopic = (topic?: string): string => topic ?? 'general';
+
+const buildTopicAggregates = (log: QuizAttempt[]): TopicAggregate[] => {
+  const stats = new Map<string, TopicAggregate>();
+
+  log.forEach((attempt) => {
+    const topic = toTopic(attempt.topic);
+    const existing = stats.get(topic) ?? { topic, total: 0, correct: 0, wrongCount: 0, lastAsked: 0 };
+    const askedAt = new Date(attempt.askedAt).getTime();
+    const updated: TopicAggregate = {
+      topic,
+      total: existing.total + 1,
+      correct: existing.correct + (attempt.isCorrect ? 1 : 0),
+      wrongCount: existing.wrongCount + (attempt.isCorrect ? 0 : 1),
+      lastAsked: Math.max(existing.lastAsked, askedAt || 0),
+    };
+    stats.set(topic, updated);
+  });
+
+  return Array.from(stats.values());
+};
+
 export class RuleTutor implements ICoach {
   public readonly name = 'RuleTutor';
 
@@ -124,6 +155,47 @@ export class RuleTutor implements ICoach {
 
     return {
       message: `${summary}\n${body}\n${hint}`,
+    };
+  }
+
+  suggestNext(log: QuizAttempt[]): LearningSuggestion {
+    if (!log.length) {
+      return {
+        topic: 'javascript',
+        reason: 'まだ回答履歴がないため、まずは基礎的な JavaScript トピックから始めましょう。',
+      };
+    }
+
+    const aggregates = buildTopicAggregates(log);
+    const scored = aggregates
+      .map((agg) => {
+        const accuracy = agg.total ? Math.round((agg.correct / agg.total) * 100) : 0;
+        return { ...agg, accuracy };
+      })
+      .sort((a, b) => {
+        // 優先度: 誤答回数 → 低い正答率 → 最近の出題の新しさ（古いものを優先）
+        const wrongDiff = b.wrongCount - a.wrongCount;
+        if (wrongDiff !== 0) return wrongDiff;
+        const accuracyDiff = a.accuracy - b.accuracy;
+        if (accuracyDiff !== 0) return accuracyDiff;
+        return a.lastAsked - b.lastAsked;
+      });
+
+    const pick = scored[0];
+    const reasons: string[] = [];
+    if (pick.wrongCount > 0) {
+      reasons.push(`最近 ${pick.wrongCount} 回ミスしています`);
+    }
+    if (pick.accuracy < 70) {
+      reasons.push(`正答率が ${pick.accuracy}% と低めです`);
+    }
+    if (!reasons.length) {
+      reasons.push('理解を定着させるために短時間で復習しましょう');
+    }
+
+    return {
+      topic: pick.topic,
+      reason: reasons.join(' / '),
     };
   }
 

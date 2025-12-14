@@ -8,6 +8,11 @@ export type QuestionType = 'multipleChoice' | 'shortAnswer' | 'codeFill' | 'code
 
 export type QuizAnswer = number | string;
 
+export interface LearningSuggestion {
+  topic: string;
+  reason: string;
+}
+
 export interface Message {
   id: string;
   sender: Sender;

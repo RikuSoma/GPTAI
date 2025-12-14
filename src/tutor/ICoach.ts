@@ -1,4 +1,4 @@
-import { QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
+import { LearningSuggestion, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
 
 export interface ChatReply {
   message: string;
@@ -14,4 +14,5 @@ export interface ICoach {
   generateChatReply: (userMessage: string) => ChatReply;
   nextQuizQuestion: (log: QuizAttempt[]) => QuizQuestion;
   evaluateAnswer: (question: QuizQuestion, userAnswer: QuizAnswer) => EvaluationResult;
+  suggestNext: (log: QuizAttempt[]) => LearningSuggestion;
 }
