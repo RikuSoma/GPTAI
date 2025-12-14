@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useReducer } from 'react';
 import { RuleTutor } from '../tutor/RuleTutor';
 import { loadPersistedState, savePersistedState } from '../storage/localStorage';
-import { AppAction, AppState, Message, Mode, QuizAttempt, QuizQuestion } from '../types';
+import { AppAction, AppState, Message, Mode, QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
 import { TabNav } from './TabNav';
 import { ChatPanel } from './ChatPanel';
 import { QuizPanel } from './QuizPanel';
 import { ReviewPanel } from './ReviewPanel';
+import { ProgressPanel } from './ProgressPanel';
 
 const createInitialState = (): AppState => {
   const persisted = typeof window !== 'undefined' ? loadPersistedState() : undefined;
@@ -27,6 +28,21 @@ const createInitialState = (): AppState => {
   };
 };
 
+const countIncorrect = (log: QuizAttempt[]): Map<string, number> => {
+  const counts = new Map<string, number>();
+  log.forEach((attempt) => {
+    if (!attempt.isCorrect) {
+      counts.set(attempt.id, (counts.get(attempt.id) ?? 0) + 1);
+    }
+  });
+  return counts;
+};
+
+const sortReviewQueue = (queue: QuizQuestion[], log: QuizAttempt[]): QuizQuestion[] => {
+  const wrongCounts = countIncorrect(log);
+  return [...queue].sort((a, b) => (wrongCounts.get(b.id) ?? 0) - (wrongCounts.get(a.id) ?? 0));
+};
+
 const reducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
     case 'setMode':
@@ -44,6 +60,7 @@ const reducer = (state: AppState, action: AppAction): AppState => {
           nextQueue = [...nextQueue, action.attempt];
         }
       }
+      nextQueue = sortReviewQueue(nextQueue, nextLog);
       return {
         ...state,
         lastAttempt: action.attempt,
@@ -83,7 +100,7 @@ export default function App(): JSX.Element {
   }, [state.messages, state.log, state.reviewQueue]);
 
   const modeLabel: Record<Mode, string> = useMemo(
-    () => ({ chat: 'Chat', quiz: 'Quiz', review: 'Review' }),
+    () => ({ chat: 'Chat', quiz: 'Quiz', review: 'Review', progress: 'Progress' }),
     []
   );
 
@@ -101,7 +118,7 @@ export default function App(): JSX.Element {
     dispatch({ type: 'setQuestion', question, status: 'awaitingAnswer' });
   };
 
-  const createAttempt = (question: QuizQuestion, userAnswer: number): QuizAttempt => {
+  const createAttempt = (question: QuizQuestion, userAnswer: QuizAnswer): QuizAttempt => {
     const evaluation = tutor.evaluateAnswer(question, userAnswer);
     return {
       ...question,
@@ -112,9 +129,9 @@ export default function App(): JSX.Element {
     };
   };
 
-  const handleSubmitAnswer = (answerIndex: number, isReview = false) => {
+  const handleSubmitAnswer = (answer: QuizAnswer, isReview = false) => {
     if (!state.currentQuestion) return;
-    const attempt = createAttempt(state.currentQuestion, answerIndex);
+    const attempt = createAttempt(state.currentQuestion, answer);
     const addToReview = !attempt.isCorrect && !isReview;
     dispatch({ type: 'recordAttempt', attempt, addToReviewQueue: addToReview });
   };
@@ -124,28 +141,29 @@ export default function App(): JSX.Element {
       dispatch({ type: 'setQuestion', question: undefined, status: 'idle' });
       return;
     }
-    const [next, ...rest] = state.reviewQueue;
-    const rotatedQueue = rest.length ? [...rest, next] : [next];
+    const orderedQueue = sortReviewQueue(state.reviewQueue, state.log);
+    const [next] = orderedQueue;
     dispatch({ type: 'setQuestion', question: next, status: 'awaitingAnswer' });
-    dispatch({ type: 'replaceReviewQueue', queue: rotatedQueue });
+    dispatch({ type: 'replaceReviewQueue', queue: orderedQueue });
   };
 
-  const handleReviewAnswer = (answerIndex: number) => {
+  const handleReviewAnswer = (answer: QuizAnswer) => {
     if (!state.currentQuestion) return;
-    const attempt = createAttempt(state.currentQuestion, answerIndex);
+    const attempt = createAttempt(state.currentQuestion, answer);
     const queueWithoutCurrent = state.reviewQueue.filter((q) => q.id !== state.currentQuestion?.id);
     const nextQueue = attempt.isCorrect
       ? queueWithoutCurrent
       : [...queueWithoutCurrent, state.currentQuestion];
+    const orderedQueue = sortReviewQueue(nextQueue, [...state.log, attempt]);
     dispatch({ type: 'recordAttempt', attempt, addToReviewQueue: false });
-    dispatch({ type: 'replaceReviewQueue', queue: nextQueue });
+    dispatch({ type: 'replaceReviewQueue', queue: orderedQueue });
   };
 
   useEffect(() => {
     if (state.mode === 'review' && state.quizStatus === 'idle' && state.reviewQueue.length) {
       handleNextReviewQuestion();
     }
-  }, [state.mode]);
+  }, [state.mode, state.reviewQueue.length]);
 
   return (
     <div className="app">
@@ -181,6 +199,8 @@ export default function App(): JSX.Element {
             onSubmitAnswer={handleReviewAnswer}
           />
         )}
+
+        {state.mode === 'progress' && <ProgressPanel log={state.log} />}
       </main>
     </div>
   );

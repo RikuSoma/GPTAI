@@ -1,4 +1,4 @@
-import { QuizAttempt, QuizQuestion } from '../types';
+import { QuizAnswer, QuizAttempt, QuizQuestion } from '../types';
 
 export interface ChatReply {
   message: string;
@@ -13,5 +13,5 @@ export interface ICoach {
   readonly name: string;
   generateChatReply: (userMessage: string) => ChatReply;
   nextQuizQuestion: (log: QuizAttempt[]) => QuizQuestion;
-  evaluateAnswer: (question: QuizQuestion, userAnswerIndex: number) => EvaluationResult;
+  evaluateAnswer: (question: QuizQuestion, userAnswer: QuizAnswer) => EvaluationResult;
 }
