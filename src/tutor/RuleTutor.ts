@@ -1,4 +1,12 @@
-import { QuizAttempt, QuizQuestion } from '../types';
+import {
+  QuizAttempt,
+  QuizQuestion,
+  QuestionType,
+  CodeDebugQuestion,
+  CodeFillQuestion,
+  ShortAnswerQuestion,
+  MultipleChoiceQuestion,
+} from '../types';
 import { ChatReply, EvaluationResult, ICoach } from './ICoach';
 
 const QUESTION_BANK: QuizQuestion[] = [
@@ -8,6 +16,10 @@ const QUESTION_BANK: QuizQuestion[] = [
     choices: ['count', 'length', 'size', 'items'],
     correctIndex: 1,
     explanation: 'JavaScript では Array.length プロパティで要素数を取得します。',
+    topic: 'javascript',
+    difficulty: 1,
+    hints: ['プロパティ名は一語で「長さ」を意味します。'],
+    rubric: '正しいプロパティ名を選べていること',
   },
   {
     id: 'promise-state',
@@ -15,6 +27,10 @@ const QUESTION_BANK: QuizQuestion[] = [
     choices: ['pending', 'rejected', 'fulfilled', 'cancelled'],
     correctIndex: 3,
     explanation: 'Promise は pending → fulfilled もしくは rejected の3状態をとります。cancelled はありません。',
+    topic: 'javascript',
+    difficulty: 2,
+    hints: ['Promise のライフサイクルは3段階です。'],
+    rubric: '存在しない状態を見分けられていること',
   },
   {
     id: 'ts-type-assertion',
@@ -27,6 +43,10 @@ const QUESTION_BANK: QuizQuestion[] = [
     ],
     correctIndex: 1,
     explanation: '型アサーションは開発者がコンパイラに型を伝えるもので、実行時の動作は変わりません。',
+    topic: 'typescript',
+    difficulty: 2,
+    hints: ['as キーワードで型を上書きします。'],
+    rubric: '型アサーションの目的を説明できること',
   },
   {
     id: 'css-specificity',
@@ -34,6 +54,10 @@ const QUESTION_BANK: QuizQuestion[] = [
     choices: ['タイプセレクタ', 'クラスセレクタ', 'ID セレクタ', '子孫セレクタ'],
     correctIndex: 2,
     explanation: '詳細度は ID > クラス > タグ です。子孫は組み合わせで加算されます。',
+    topic: 'css',
+    difficulty: 1,
+    hints: ['# を使う指定が最も強いです。'],
+    rubric: '詳細度の優先順位を理解していること',
   },
   {
     id: 'http-method',
@@ -41,6 +65,48 @@ const QUESTION_BANK: QuizQuestion[] = [
     choices: ['GET', 'POST', 'PUT', 'PATCH'],
     correctIndex: 3,
     explanation: 'PATCH は部分的な更新に適しています。PUT は全体置き換えが前提です。',
+    topic: 'web',
+    difficulty: 1,
+    hints: ['差分更新を行うメソッドを選びましょう。'],
+    rubric: '適切な HTTP メソッドを選択できること',
+  },
+  {
+    id: 'shortanswer-scope',
+    type: 'shortAnswer',
+    prompt: 'JavaScript のクロージャを一文で説明してください。',
+    expectedAnswer: '関数が外側のスコープの変数へアクセスし続ける仕組み',
+    acceptableAnswers: ['外側スコープへの参照を保持する関数', '関数とその外部環境をセットで保持する機能'],
+    explanation: 'クロージャは関数が生成されたときのスコープを閉じ込め、後からも参照できるようにする仕組みです。',
+    topic: 'javascript',
+    difficulty: 3,
+    hints: ['「スコープ」「保持」といったキーワードを含めましょう。'],
+    rubric: 'スコープと保持の2点が含まれていること',
+  },
+  {
+    id: 'codefill-map',
+    type: 'codeFill',
+    prompt: '配列 [1,2,3] を2倍にした新しい配列を作るコードを完成させてください。',
+    codeTemplate: 'const nums = [1, 2, 3];\nconst doubled = nums._____(n => n * 2);',
+    expectedAnswer: 'map',
+    expectedOutput: '[2,4,6]',
+    explanation: 'Array.prototype.map を使うと新しい配列を返し、元の配列を変更しません。',
+    topic: 'javascript',
+    difficulty: 2,
+    hints: ['配列を加工して新しい配列を返すメソッドです。'],
+    rubric: 'map を使った不変操作になっていること',
+  },
+  {
+    id: 'codedebug-offbyone',
+    type: 'codeDebug',
+    prompt: 'for ループで off-by-one エラーがある箇所を修正してください。',
+    buggySnippet: 'const arr = ["a", "b", "c"];\nfor (let i = 0; i <= arr.length; i++) {\n  console.log(arr[i]);\n}',
+    expectedFix: 'i < arr.length にする',
+    expectedOutput: 'a b c と表示される',
+    explanation: '添字は 0 から length-1 までなので、条件は i < arr.length です。<= にすると undefined を参照します。',
+    topic: 'javascript',
+    difficulty: 2,
+    hints: ['終端条件を見直しましょう。'],
+    rubric: 'ループ条件を length-1 までに修正できていること',
   },
 ];
 
@@ -75,15 +141,83 @@ export class RuleTutor implements ICoach {
     return sorted[0];
   }
 
-  evaluateAnswer(question: QuizQuestion, userAnswerIndex: number): EvaluationResult {
-    const isCorrect = question.correctIndex === userAnswerIndex;
-    const baseExplanation = question.explanation;
-    const detail = isCorrect
-      ? '正解です。根拠を自分の言葉で言えるとさらに定着します。'
-      : `惜しい！正解は「${question.choices[question.correctIndex]}」です。`;
-    return {
-      isCorrect,
-      explanation: `${detail} ${baseExplanation}`,
-    };
+  evaluateAnswer(question: QuizQuestion, userAnswer: number | string): EvaluationResult {
+    const type: QuestionType = question.type ?? 'multipleChoice';
+
+    switch (type) {
+      case 'multipleChoice': {
+        const mc = question as MultipleChoiceQuestion;
+        const isCorrect = mc.correctIndex === userAnswer;
+        const baseExplanation = mc.explanation;
+        const detail = isCorrect
+          ? '正解です。根拠を自分の言葉で言えるとさらに定着します。'
+          : `惜しい！正解は「${mc.choices[mc.correctIndex]}」です。`;
+        return {
+          isCorrect,
+          explanation: `${detail} ${baseExplanation}`,
+        };
+      }
+      case 'shortAnswer': {
+        const shortQuestion = question as ShortAnswerQuestion;
+        if (typeof userAnswer !== 'string') {
+          return {
+            isCorrect: false,
+            explanation: '回答形式が想定と異なります。テキストで答えてみましょう。',
+          };
+        }
+        const normalize = (value: string): string => value.trim().toLowerCase();
+        const expectedList = [shortQuestion.expectedAnswer, ...(shortQuestion.acceptableAnswers ?? [])].map(normalize);
+        const isCorrect = expectedList.some((expected) => normalize(userAnswer).includes(expected));
+        const rubric = shortQuestion.rubric ? `採点観点: ${shortQuestion.rubric}` : '';
+        const feedback = isCorrect
+          ? 'キーワードが押さえられています。'
+          : 'もう一度、スコープを保持する点を強調しましょう。';
+        return {
+          isCorrect,
+          explanation: `${feedback} ${shortQuestion.explanation} ${rubric}`.trim(),
+        };
+      }
+      case 'codeFill': {
+        const fillQuestion = question as CodeFillQuestion;
+        if (typeof userAnswer !== 'string') {
+          return {
+            isCorrect: false,
+            explanation: '回答形式が想定と異なります。コード片をテキストで入力してください。',
+          };
+        }
+        const normalize = (value: string): string => value.trim().toLowerCase();
+        const isCorrect = normalize(userAnswer) === normalize(fillQuestion.expectedAnswer);
+        const rubric = fillQuestion.rubric ? `採点観点: ${fillQuestion.rubric}` : '';
+        const feedback = isCorrect
+          ? '正しく補完できています。'
+          : `期待するワードは「${fillQuestion.expectedAnswer}」です。`;
+        return {
+          isCorrect,
+          explanation: `${feedback} ${fillQuestion.explanation} ${rubric}`.trim(),
+        };
+      }
+      case 'codeDebug': {
+        const debugQuestion = question as CodeDebugQuestion;
+        if (typeof userAnswer !== 'string') {
+          return {
+            isCorrect: false,
+            explanation: '修正内容をテキストで入力してください。',
+          };
+        }
+        const normalize = (value: string): string => value.trim().toLowerCase();
+        const isDebugCorrect = normalize(userAnswer).includes(normalize(debugQuestion.expectedFix));
+        const rubric = debugQuestion.rubric ? `採点観点: ${debugQuestion.rubric}` : '';
+        const feedback = isDebugCorrect ? '修正方針は合っています。' : 'ループ条件を見直してください。';
+        return {
+          isCorrect: isDebugCorrect,
+          explanation: `${feedback} ${debugQuestion.explanation} ${rubric}`.trim(),
+        };
+      }
+      default:
+        return {
+          isCorrect: false,
+          explanation: 'この問題タイプにはまだ対応していません。',
+        };
+    }
   }
 }
